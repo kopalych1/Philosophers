@@ -6,7 +6,7 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/25 19:42:50 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/27 11:59:02 by akostian         ###   ########.fr       */
+/*   Updated: 2025/01/27 15:17:57 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <string.h>
 
 #include "ANSI_colors.h"
 
@@ -48,6 +49,7 @@ typedef struct s_ph_thread_args
 	t_sim_settings		*sim;			// Simulation settings
 	time_t				start_time;		// Start time of the program
 	unsigned short int	philo_n;
+	char				*map;
 	pthread_mutex_t		*print_mutex;	// Mutex for printf
 	t_fork				*left_fork;
 	t_fork				*right_fork;
@@ -58,6 +60,7 @@ int				is_all_digit(char *str);
 unsigned char	parse(int argc, char **argv, t_sim_settings *sim_settings);
 
 int				ft_imax(int a, int b);
+void			*ft_calloc(size_t count, size_t size);
 
 time_t			get_time_ms(void);
 time_t			get_time_us(void);

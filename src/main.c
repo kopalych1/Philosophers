@@ -6,15 +6,15 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/02 17:18:43 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/27 12:00:25 by akostian         ###   ########.fr       */
+/*   Updated: 2025/01/28 11:16:09 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/philosophers.h"
 
-#define NUM_OF_PHILO 50
+#define NUM_OF_PHILO 7
 #define EATING_TIME_MS 500
-#define SLEEPING_TIME_MS 1000
+#define SLEEPING_TIME_MS 250
 #define DESIRED_EATEN 4UL
 
 #define CLR_PHILO_N	HYEL"%-3d"CRESET
@@ -58,39 +58,80 @@ void	print_time(time_t t0)
 	printf("%-8li", get_time_ms() - t0);
 }
 
+char	**generate_extra_wait_map(unsigned short int n_of_philos)
+{
+	const short unsigned int	jump = (n_of_philos - 1) / 2;
+	char						**ret;
+	short int					i;
+
+	ret = ft_calloc(n_of_philos, sizeof(char *));
+	if (!ret)
+		return (NULL);
+	i = -1;
+	while (++i < n_of_philos)
+	{
+		ret[i] = ft_calloc(jump, sizeof(char));
+		if (!ret[i])
+			return (NULL);
+		if (i == 0)
+			ret[i][0] = 1;
+		else
+			ret[i][((n_of_philos - 1) / 2 - 1) - (i - 1) / 2] = 1;
+	}
+	return (ret);
+}
+
+time_t	next_meal(
+		t_sim_settings *sim,
+		unsigned short int philo_n,
+		unsigned int eaten_times,
+		char *map
+)
+{
+	unsigned char		is_odd;
+	time_t				ret;
+	time_t				start;
+	unsigned short int	jump;
+	(void)sim;
+
+	is_odd = philo_n % 2 == 0;
+	start = is_odd * EATING_TIME_MS;
+	if (NUM_OF_PHILO % 2 == 0)
+		ret = start + (EATING_TIME_MS * eaten_times) + (SLEEPING_TIME_MS * eaten_times)
+			+ ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * eaten_times;
+	else
+	{
+		jump = (NUM_OF_PHILO - 1) / 2;
+		ret =
+			start + (EATING_TIME_MS * eaten_times) + (SLEEPING_TIME_MS * eaten_times)
+			+ (ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * eaten_times)
+			+ ((map[eaten_times % jump] && philo_n && (philo_n - 1 || eaten_times)) * EATING_TIME_MS)
+			+ eaten_times / jump * EATING_TIME_MS;
+	}
+	return (ret);
+}
+
 void	*philosopher_thread(void *arg)
 {
 	t_ph_thread_args	philo_args;
 	unsigned int		eaten_times;
-	// unsigned char	is_odd;
-	// time_t			start;
-	// unsigned int		flag;
+	time_t				next;
 
 	philo_args = *(t_ph_thread_args *)arg;
 
-	// is_odd = philo_args.philo_n % 2 == 0;
-	// flag = 1;
+	pthread_mutex_lock(philo_args.print_mutex);
+	printf(CLR_PHILO_N": ", philo_args.philo_n);
+	for (size_t i = 0; i < 10; i++)
+	{
+		next = next_meal(philo_args.sim, philo_args.philo_n, i, philo_args.map);
+		printf("%ld-",
+			next
+		);
+	}
+	printf("\n");
+	pthread_mutex_unlock(philo_args.print_mutex);
 
-	// if (NUM_OF_PHILO % 2 == 0)
-	// 	start = is_odd * EATING_TIME_MS;
-	// else
-	// 	start = ((philo_args.philo_n == flag) * 2 + is_odd) * EATING_TIME_MS;
-
-
-	// pthread_mutex_lock(philo_args.print_mutex);
-	// printf(CLR_PHILO_N": ", philo_args.philo_n);
-	// for (size_t i = 0; i <= DESIRED_EATEN; i++)
-	// {
-	// 	if (NUM_OF_PHILO % 2 == 0)
-	// 		printf("%li-", (time_t)(start + (EATING_TIME_MS * i) + (SLEEPING_TIME_MS * i) + ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * i));
-	// 	else
-	// 		printf("%li-", (time_t)(start + (EATING_TIME_MS * i) + (SLEEPING_TIME_MS * i) + ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * i) + (philo_args.philo_n == flag) * EATING_TIME_MS);
-	// 	flag++;
-	// }
-	// printf("\n");
-	// pthread_mutex_unlock(philo_args.print_mutex);
-
-	// return (0);
+	return (0);
 
 	eaten_times = 0;
 	while (eaten_times < DESIRED_EATEN)
@@ -156,11 +197,15 @@ int main(/* int argc, char **argv */)
 	t_fork				forks[NUM_OF_PHILO];
 	pthread_mutex_t		print_mutex;
 	time_t				start_time;
+	char				**map;
 	// t_sim_settings		sim_settings;
 
 	// if (parse(argc, argv, &sim_settings))
 	// 	return (printf(INCORRECT_ARGS_ERROR_MESSAGE), 1);
 	
+	if (NUM_OF_PHILO % 2)
+		map = generate_extra_wait_map(NUM_OF_PHILO);
+
 	start_time = get_time_ms();
 
 	for (int i = 0; i < NUM_OF_PHILO; i++)
@@ -174,6 +219,8 @@ int main(/* int argc, char **argv */)
 		philosopher_args[i].start_time = start_time;
 		philosopher_args[i].print_mutex = &print_mutex;
 		philosopher_args[i].philo_n = i + 1;
+		if (NUM_OF_PHILO % 2)
+			philosopher_args[i].map = map[i];
 		if (!i)
 			philosopher_args[i].right_fork = &(forks[NUM_OF_PHILO - 1]);
 		else
@@ -187,5 +234,12 @@ int main(/* int argc, char **argv */)
 	for (int i = 0; i < NUM_OF_PHILO; i++)
 		pthread_join(threads[i], NULL);
 	printf("ms All threads are done.\n");
+
+	if (NUM_OF_PHILO % 2)
+	{
+		for (size_t i = 0; i < NUM_OF_PHILO; i++)
+			free(map[i]);
+		free(map);
+	}
 	return (0);
 }

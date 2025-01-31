@@ -6,7 +6,7 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/01/20 09:43:03 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/22 13:48:11 by akostian         ###   ########.fr       */
+/*   Updated: 2025/01/29 17:30:45 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,5 +30,8 @@ unsigned char	parse(int argc, char **argv, t_sim_settings *sim_settings)
 		sim_settings->ph_eat_count = ft_atoi(argv[5]);
 	else
 		sim_settings->ph_eat_count = 0;
+	if (sim_settings->philo_n < 1 || sim_settings->time_to_die < 1
+		|| sim_settings->time_to_eat < 1 || sim_settings->time_to_slp < 1)
+		return (1);
 	return (0);
 }

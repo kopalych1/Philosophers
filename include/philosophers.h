@@ -6,7 +6,7 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/25 19:42:50 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/29 12:20:16 by akostian         ###   ########.fr       */
+/*   Updated: 2025/02/05 01:59:01 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,25 @@
 # endif
 
 # include "ANSI_colors.h"
+
+
+# ifndef COLORED
+#  define COLORED 0
+# endif
+
+# if COLORED
+#  define PHILO_N "\033[1;33m%-4d\033[0m"
+#  define PHILO_EATING_MSG "\033[1;31mis eating\n\033[0m"
+#  define PHILO_SLEEPING_MSG "\033[1;34mis sleeping\n\033[0m"
+#  define PHILO_THINKING_MSG "\033[1;32mis thinking\n\033[0m"
+#  define PHILO_TAKING_MSG "\033[1;35mhas taken a fork\n\033[0m"
+# else
+#  define PHILO_N "%-4d"
+#  define PHILO_EATING_MSG "is eating\n"
+#  define PHILO_SLEEPING_MSG "is sleeping\n"
+#  define PHILO_THINKING_MSG "is thinking\n"
+#  define PHILO_TAKING_MSG "has taken a fork\n"
+# endif
 
 # define INCORRECT_ARGS_ERROR_MESSAGE \
 "\033[41mIncorrect arguments\033[0m\n\

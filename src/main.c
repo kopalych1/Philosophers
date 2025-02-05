@@ -6,7 +6,7 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/02 17:18:43 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/31 11:37:52 by akostian         ###   ########.fr       */
+/*   Updated: 2025/02/05 01:55:42 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +34,7 @@ void	philo_print(t_ph_data *philo_data, char *action)
 {
 	pthread_mutex_lock(philo_data->print_mutex);
 	printf("%-8li", time_diff(philo_data->start_time));
-	printf(BYEL "%-4d" CRESET, philo_data->philo_n);
+	printf(PHILO_N, philo_data->philo_n);
 	printf("%s", action);
 	pthread_mutex_unlock(philo_data->print_mutex);
 }
@@ -50,17 +50,17 @@ void	*philosopher_thread(void *arg)
 		|| !philo_data.sim->ph_eat_count)
 	{
 		pthread_mutex_lock(philo_data.left_fork);
-		philo_print(&philo_data, BMAG"has taken a fork\n"CRESET);
+		philo_print(&philo_data, PHILO_TAKING_MSG);
 		pthread_mutex_lock(philo_data.right_fork);
-		philo_print(&philo_data, BMAG"has taken a fork\n"CRESET);
-		philo_print(&philo_data, BRED"is eating\n"CRESET);
+		philo_print(&philo_data, PHILO_TAKING_MSG);
+		philo_print(&philo_data, PHILO_EATING_MSG);
 		philo_wait(&philo_data, philo_data.sim->time_to_eat);
 		pthread_mutex_unlock(philo_data.left_fork);
 		pthread_mutex_unlock(philo_data.right_fork);
 		eaten_times++;
-		philo_print(&philo_data, BBLU"is sleeping\n"CRESET);
+		philo_print(&philo_data, PHILO_SLEEPING_MSG);
 		philo_wait(&philo_data, philo_data.sim->time_to_slp);
-		philo_print(&philo_data, BGRN"is thinking\n"CRESET);
+		philo_print(&philo_data, PHILO_THINKING_MSG);
 	}
 	return (0);
 }
@@ -147,6 +147,6 @@ int	main(int argc, char **argv)
 		return (printf(NO_MEMORY_ERROR_MESSAGE), ENOMEM);
 	for (unsigned int i = 0; i < sim_settings.philo_n; i++)
 		pthread_join(threads[i], NULL);
-	printf("ms All threads are done.\n");
+	// printf("ms All threads are done.\n");
 	return (free(threads), free(philosopher_data), free(sim_settings.forks), 0);
 }

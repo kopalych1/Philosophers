@@ -6,56 +6,37 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/02 17:18:43 by akostian          #+#    #+#             */
-/*   Updated: 2025/01/28 11:16:09 by akostian         ###   ########.fr       */
+/*   Updated: 2025/02/05 14:00:47 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/philosophers.h"
 
-#define NUM_OF_PHILO 7
-#define EATING_TIME_MS 500
-#define SLEEPING_TIME_MS 250
-#define DESIRED_EATEN 4UL
-
-#define CLR_PHILO_N	HYEL"%-3d"CRESET
-#define CLR_FORK_N	HMAG"%d"CRESET
-
-void	sleep_until(time_t	wake_up)
+time_t	time_diff(time_t tv0)
 {
-	while (get_time_ms() <= wake_up)
-		usleep(50);
+	return (get_time_ms() - tv0);
 }
 
-void	smart_sleep(
-		unsigned short int philo_n,
-		time_t start_time,
-		time_t sleep_time
-)
+void	philo_wait(t_ph_data *philo_data, unsigned int wait_time)
 {
-	time_t			wake_up_after;
-	// static int		philo_rest[NUM_OF_PHILO];
+	time_t	wake_up;
 
-	wake_up_after = (get_time_ms() - start_time + sleep_time) / 10 * 10;
-
-	(void)philo_n;
-	// if ((philo_rest[philo_n - 1] + (sleep_time % 10)) < 10)
-	// 	philo_rest[philo_n - 1] = (philo_rest[philo_n - 1] + (sleep_time % 10));
-	// else
-	// 	philo_rest[philo_n - 1] = (philo_rest[philo_n - 1] + (sleep_time % 10));
-
-	// printf("--------------------\n");
-	// printf("philo_n: "CLR_PHILO_N"\n", philo_n);
-	// printf("rest: %d\n", philo_rest[philo_n - 1]);
-	// printf("waiting until: %ld\n", wake_up_after + philo_rest[philo_n - 1]);
-	// printf("--------------------\n");
-
-	while (get_time_ms() < (wake_up_after + start_time /* + philo_rest[philo_n - 1] */))
-		usleep(5);
+	wake_up = time_diff(philo_data->start_time) + wait_time;
+	while (1)
+	{
+		if (time_diff(philo_data->start_time) > wake_up)
+			return ;
+		usleep(20);
+	}
 }
 
-void	print_time(time_t t0)
+void	philo_print(t_ph_data *philo_data, char *action)
 {
-	printf("%-8li", get_time_ms() - t0);
+	pthread_mutex_lock(philo_data->print_mutex);
+	printf("%-8li", time_diff(philo_data->start_time));
+	printf(PHILO_N, philo_data->philo_n);
+	printf("%s", action);
+	pthread_mutex_unlock(philo_data->print_mutex);
 }
 
 char	**generate_extra_wait_map(unsigned short int n_of_philos)
@@ -95,151 +76,130 @@ time_t	next_meal(
 	(void)sim;
 
 	is_odd = philo_n % 2 == 0;
-	start = is_odd * EATING_TIME_MS;
-	if (NUM_OF_PHILO % 2 == 0)
-		ret = start + (EATING_TIME_MS * eaten_times) + (SLEEPING_TIME_MS * eaten_times)
-			+ ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * eaten_times;
+	start = is_odd * sim->time_to_eat;
+	if (sim->philo_n % 2 == 0)
+		ret = start + (sim->time_to_eat * eaten_times) + (sim->time_to_slp * eaten_times)
+			+ ft_imax(sim->time_to_eat - sim->time_to_slp, 0) * eaten_times;
 	else
 	{
-		jump = (NUM_OF_PHILO - 1) / 2;
+		jump = (sim->philo_n - 1) / 2;
 		ret =
-			start + (EATING_TIME_MS * eaten_times) + (SLEEPING_TIME_MS * eaten_times)
-			+ (ft_imax(EATING_TIME_MS - SLEEPING_TIME_MS, 0) * eaten_times)
-			+ ((map[eaten_times % jump] && philo_n && (philo_n - 1 || eaten_times)) * EATING_TIME_MS)
-			+ eaten_times / jump * EATING_TIME_MS;
+			start + (sim->time_to_eat * eaten_times) + (sim->time_to_slp * eaten_times)
+			+ (ft_imax(sim->time_to_eat - sim->time_to_slp, 0) * eaten_times)
+			+ ((map[eaten_times % jump] && philo_n && (philo_n - 1 || eaten_times)) * sim->time_to_eat)
+			+ eaten_times / jump * sim->time_to_eat;
 	}
 	return (ret);
 }
 
 void	*philosopher_thread(void *arg)
 {
-	t_ph_thread_args	philo_args;
-	unsigned int		eaten_times;
-	time_t				next;
+	t_ph_data		philo_data;
+	unsigned int	eaten_times;
 
-	philo_args = *(t_ph_thread_args *)arg;
-
-	pthread_mutex_lock(philo_args.print_mutex);
-	printf(CLR_PHILO_N": ", philo_args.philo_n);
-	for (size_t i = 0; i < 10; i++)
-	{
-		next = next_meal(philo_args.sim, philo_args.philo_n, i, philo_args.map);
-		printf("%ld-",
-			next
-		);
-	}
-	printf("\n");
-	pthread_mutex_unlock(philo_args.print_mutex);
-
-	return (0);
-
+	philo_data = *(t_ph_data *)arg;
 	eaten_times = 0;
-	while (eaten_times < DESIRED_EATEN)
+	while ((eaten_times < philo_data.sim->ph_eat_count)
+		|| !philo_data.sim->ph_eat_count)
 	{
-		while (1)
-		{
-			pthread_mutex_lock(&(philo_args.left_fork->mutex));
-			pthread_mutex_lock(&(philo_args.right_fork->mutex));
-
-			if (!philo_args.left_fork->is_taken && !philo_args.right_fork->is_taken)
-			{
-				philo_args.left_fork->is_taken = 1;
-				philo_args.right_fork->is_taken = 1;
-				pthread_mutex_unlock(&(philo_args.left_fork->mutex));
-				pthread_mutex_unlock(&(philo_args.right_fork->mutex));
-				break;
-			}
-
-			pthread_mutex_unlock(&(philo_args.left_fork->mutex));
-			pthread_mutex_unlock(&(philo_args.right_fork->mutex));
-			usleep(20);
-		}
-
-		pthread_mutex_lock(philo_args.print_mutex);
-		print_time(philo_args.start_time);
-		printf(CLR_PHILO_N" is eating\n", philo_args.philo_n);
-		pthread_mutex_unlock(philo_args.print_mutex);
-
-		smart_sleep(philo_args.philo_n, philo_args.start_time, EATING_TIME_MS);
-
-		pthread_mutex_lock(&(philo_args.left_fork->mutex));
-		pthread_mutex_lock(&(philo_args.right_fork->mutex));
-		philo_args.left_fork->is_taken = 0;
-		philo_args.right_fork->is_taken = 0;
-		pthread_mutex_unlock(&(philo_args.left_fork->mutex));
-		pthread_mutex_unlock(&(philo_args.right_fork->mutex));
-
+		pthread_mutex_lock(philo_data.left_fork);
+		philo_print(&philo_data, PHILO_TAKING_MSG);
+		pthread_mutex_lock(philo_data.right_fork);
+		philo_print(&philo_data, PHILO_TAKING_MSG);
+		philo_print(&philo_data, PHILO_EATING_MSG);
+		philo_wait(&philo_data, philo_data.sim->time_to_eat);
+		pthread_mutex_unlock(philo_data.left_fork);
+		pthread_mutex_unlock(philo_data.right_fork);
 		eaten_times++;
-
-		pthread_mutex_lock(philo_args.print_mutex);
-		print_time(philo_args.start_time);
-		printf(CLR_PHILO_N" is sleeping\n", philo_args.philo_n);
-		pthread_mutex_unlock(philo_args.print_mutex);
-
-		smart_sleep(philo_args.philo_n, philo_args.start_time, SLEEPING_TIME_MS);
-
-		pthread_mutex_lock(philo_args.print_mutex);
-		print_time(philo_args.start_time);
-		printf(CLR_PHILO_N" is thinking\n", philo_args.philo_n);
-		pthread_mutex_unlock(philo_args.print_mutex);
+		philo_print(&philo_data, PHILO_SLEEPING_MSG);
+		philo_wait(&philo_data, philo_data.sim->time_to_slp);
+		philo_print(&philo_data, PHILO_THINKING_MSG);
 	}
 	return (0);
 }
 
-
-
-#include <stdlib.h>
-
-int main(/* int argc, char **argv */)
+unsigned char	init_data(
+	t_sim_settings *sim,
+	pthread_t **threads,
+	t_ph_data **philo_data,
+	pthread_mutex_t *print_mutex
+)
 {
-	pthread_t			threads[NUM_OF_PHILO];
-	t_ph_thread_args	philosopher_args[NUM_OF_PHILO];
-	t_fork				forks[NUM_OF_PHILO];
-	pthread_mutex_t		print_mutex;
-	time_t				start_time;
-	char				**map;
-	// t_sim_settings		sim_settings;
+	unsigned int	i;
 
-	// if (parse(argc, argv, &sim_settings))
-	// 	return (printf(INCORRECT_ARGS_ERROR_MESSAGE), 1);
-	
-	if (NUM_OF_PHILO % 2)
-		map = generate_extra_wait_map(NUM_OF_PHILO);
-
-	start_time = get_time_ms();
-
-	for (int i = 0; i < NUM_OF_PHILO; i++)
+	*threads = ft_calloc(sim->philo_n, sizeof(pthread_t));
+	*philo_data = ft_calloc(sim->philo_n, sizeof(t_ph_data));
+	sim->forks = ft_calloc(sim->philo_n, sizeof(pthread_mutex_t));
+	if (!*threads || !*philo_data || !sim->forks)
+		return (free(*threads), free(*philo_data), free(sim->forks), 1);
+	if (pthread_mutex_init(print_mutex, NULL))
+		return (free(*threads), free(*philo_data), free(sim->forks), 1);
+	sim->print_mutex = print_mutex;
+	i = -1;
+	while (++i < sim->philo_n)
 	{
-		forks[i].fork_n = i;
-		forks[i].is_taken = 0;
-		pthread_mutex_init(&(forks[i].mutex), NULL);
-	}
-	pthread_mutex_init(&print_mutex, NULL);
-	for (int i = 0; i < NUM_OF_PHILO; i++) {
-		philosopher_args[i].start_time = start_time;
-		philosopher_args[i].print_mutex = &print_mutex;
-		philosopher_args[i].philo_n = i + 1;
-		if (NUM_OF_PHILO % 2)
-			philosopher_args[i].map = map[i];
-		if (!i)
-			philosopher_args[i].right_fork = &(forks[NUM_OF_PHILO - 1]);
+		if (pthread_mutex_init(&(sim->forks[i]), NULL))
+			return (free(*threads), free(*philo_data), free(sim->forks), 1);
+		(*philo_data)[i].philo_n = i + 1;
+		(*philo_data)[i].print_mutex = sim->print_mutex;
+		(*philo_data)[i].sim = sim;
+		if (i == 0)
+			(*philo_data)[i].right_fork = &(sim->forks[sim->philo_n - 1]);
 		else
-			philosopher_args[i].right_fork = &(forks[i - 1]);
-		philosopher_args[i].left_fork = &(forks[i]);
-		if (pthread_create(&threads[i], NULL, philosopher_thread, &philosopher_args[i]) != 0){
-			fprintf(stderr, "Error creating thread %d\n", i + 1);
-			exit(EXIT_FAILURE);
-		}
-	}
-	for (int i = 0; i < NUM_OF_PHILO; i++)
-		pthread_join(threads[i], NULL);
-	printf("ms All threads are done.\n");
-
-	if (NUM_OF_PHILO % 2)
-	{
-		for (size_t i = 0; i < NUM_OF_PHILO; i++)
-			free(map[i]);
-		free(map);
+			(*philo_data)[i].right_fork = &(sim->forks[i - 1]);
+		(*philo_data)[i].left_fork = &(sim->forks[i]);
 	}
 	return (0);
+}
+
+unsigned char	create_philos(
+	t_sim_settings sim,
+	pthread_t *threads,
+	t_ph_data *philosopher_data
+)
+{
+	time_t				start_time;
+	unsigned int		i;
+
+	start_time = get_time_ms();
+	i = 0;
+	while (i < sim.philo_n)
+	{
+		philosopher_data[i].start_time = start_time;
+		if (pthread_create(&threads[i], NULL,
+				philosopher_thread, &philosopher_data[i]) != 0)
+			return (1);
+		i += 2;
+	}
+	usleep(1000);
+	start_time = get_time_ms();
+	i = 1;
+	while (i < sim.philo_n)
+	{
+		philosopher_data[i].start_time = start_time;
+		if (pthread_create(&threads[i], NULL,
+				philosopher_thread, &philosopher_data[i]) != 0)
+			return (1);
+		i += 2;
+	}
+	return (0);
+}
+
+int	main(int argc, char **argv)
+{
+	t_sim_settings		sim_settings;
+	pthread_t			*threads;
+	t_ph_data			*philosopher_data;
+	pthread_mutex_t		print_mutex;
+
+	if (parse(argc, argv, &sim_settings))
+		return (printf(INCORRECT_ARGS_ERROR_MESSAGE), 1);
+	if (init_data(&sim_settings, &threads, &philosopher_data, &print_mutex))
+		return (printf(NO_MEMORY_ERROR_MESSAGE), ENOMEM);
+	if (create_philos(sim_settings, threads, philosopher_data))
+		return (printf(NO_MEMORY_ERROR_MESSAGE), ENOMEM);
+	for (unsigned int i = 0; i < sim_settings.philo_n; i++)
+		pthread_join(threads[i], NULL);
+	// printf("ms All threads are done.\n");
+	return (free(threads), free(philosopher_data), free(sim_settings.forks), 0);
 }

@@ -6,22 +6,49 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/02 17:18:43 by akostian          #+#    #+#             */
-/*   Updated: 2025/02/07 00:38:28 by akostian         ###   ########.fr       */
+/*   Updated: 2025/02/07 05:28:52 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../include/philosophers.h"
 
-void	free_data(
+void	cancel_all_philos(
 	t_sim_settings *sim,
-	pthread_t **threads
+	pthread_t *threads
 )
 {
-	free(*threads);
-	free(sim->philo_data);
-	free(sim->forks);
-	free(sim->last_meals);
-	free(sim->eat_enough);
+	unsigned int	i;
+
+	i = 0;
+	while (i < sim->philo_n + 1)
+		pthread_join(threads[i++], NULL);
+}
+
+void	cancel_n_philos(
+	pthread_t *threads,
+	t_ph_data *philosopher_data,
+	unsigned int i
+)
+{
+	unsigned int	j;
+
+	philosopher_data->sim->is_dead = 1;
+	j = 0;
+	while (j < philosopher_data->sim->philo_n && j != i)
+	{
+		printf("canceling: %d\n", j);
+		pthread_join(threads[j], NULL);
+		j += 2;
+	}
+	if (j == i)
+		return ;
+	j = 1;
+	while (j < philosopher_data->sim->philo_n && j != i)
+	{
+		printf("canceling: %d\n", j);
+		pthread_join(threads[j], NULL);
+		j += 2;
+	}
 }
 
 unsigned char	create_philos(
@@ -40,7 +67,7 @@ unsigned char	create_philos(
 		philosopher_data[i].start_time = start_time;
 		if (pthread_create(&threads[i], NULL,
 				philosopher_thread, &philosopher_data[i]) != 0)
-			return (1);
+			return (cancel_n_philos(threads, philosopher_data, i), 1);
 		i += 2;
 	}
 	usleep(1000);
@@ -51,7 +78,7 @@ unsigned char	create_philos(
 		philosopher_data[i].start_time = start_time;
 		if (pthread_create(&threads[i], NULL,
 				philosopher_thread, &philosopher_data[i]) != 0)
-			return (1);
+			return (cancel_n_philos(threads, philosopher_data, i), 1);
 		i += 2;
 	}
 	return (0);
@@ -91,7 +118,6 @@ int	main(int argc, char **argv)
 	pthread_t			*threads;
 	t_ph_data			*philosopher_data;
 	pthread_mutex_t		print_mutex;
-	unsigned int		i;
 
 	if (parse(argc, argv, &sim_settings))
 		return (printf(INCORRECT_ARGS_ERROR_MESSAGE), 1);
@@ -103,9 +129,12 @@ int	main(int argc, char **argv)
 	usleep(2000);
 	if (pthread_create(&threads[sim_settings.philo_n], NULL,
 			reaper_thread, &sim_settings) != 0)
-		return (free_data(&sim_settings, &threads), 1);
-	i = 0;
-	while (i < sim_settings.philo_n + 1)
-		pthread_join(threads[i++], NULL);
+	{
+		sim_settings.is_dead = 1;
+		cancel_all_philos(&sim_settings, threads);
+		return (free_data(&sim_settings, &threads),
+			printf(NO_MEMORY_ERROR_MESSAGE), ENOMEM);
+	}
+	cancel_all_philos(&sim_settings, threads);
 	return (free_data(&sim_settings, &threads), 0);
 }

@@ -6,7 +6,7 @@
 /*   By: akostian <akostian@student.s19.be>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/11/25 19:42:50 by akostian          #+#    #+#             */
-/*   Updated: 2025/02/07 00:21:18 by akostian         ###   ########.fr       */
+/*   Updated: 2025/02/07 01:06:06 by akostian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,7 +91,22 @@ unsigned char	parse(int argc, char **argv, t_sim_settings *sim_settings);
 int				ft_imax(int a, int b);
 void			*ft_calloc(size_t count, size_t size);
 
+unsigned char	init_data(
+					t_sim_settings *sim,
+					pthread_t **threads,
+					t_ph_data **philo_data,
+					pthread_mutex_t *print_mutex
+					);
+void			free_data(
+					t_sim_settings *sim,
+					pthread_t **threads
+					);
+
+void			philo_print(t_ph_data *philo_data, char *action);
+void			*philosopher_thread(void *arg);
+
 time_t			get_time_ms(void);
 time_t			get_time_us(void);
+time_t			time_diff(time_t tv0);
 
 #endif

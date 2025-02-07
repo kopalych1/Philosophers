@@ -6,7 +6,7 @@
 #    By: akostian <akostian@student.s19.be>         +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/08/19 13:20:29 by akostian          #+#    #+#              #
-#    Updated: 2025/01/28 16:27:38 by akostian         ###   ########.fr        #
+#    Updated: 2025/02/07 00:51:53 by akostian         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,8 +17,10 @@ VPATH				= src
 
 SRC_DIR				= src
 SRCS				= main.c \
-					  is_all_digit.c ft_atoi.c ft_imax.c get_time.c ft_calloc.c \
-					  parse.c
+					  parse.c is_all_digit.c ft_atoi.c ft_imax.c \
+					  ft_calloc.c init.c \
+					  philo.c \
+					  get_time.c \
 
 INC_DIR				= include
 INCLUDES			= -I$(INC_DIR)
